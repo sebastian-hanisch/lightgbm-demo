@@ -87,7 +87,7 @@ def build_round_tree(tree, names, height=300):
     inner_labels = [str(int(tree.split_order[t])) for t in np.nonzero(inner)[0]]
     fig.add_trace(go.Scatter(x=x[inner], y=y[inner], mode="markers+text", text=inner_labels, textposition="middle center", textfont=dict(size=9, color="#ffffff"),
                              marker=dict(size=size[inner] * 0.8, color="#555555"),
-                             hovertext=[f"{names[tree.feature[t]]} ≤ {tree.threshold[t]:.4g}? Gewinn {tree.gain[t]:.4f}, {int(tree.split_order[t]) + 1}. Schnitt" for t in np.nonzero(inner)[0]],
+                             hovertext=[f"{names[tree.feature[t]]} ≤ {tree.threshold[t]:.4g}? Gain {tree.gain[t]:.4f}, {int(tree.split_order[t]) + 1}. Split" for t in np.nonzero(inner)[0]],
                              hoverinfo="text", showlegend=False))
     fig.update_xaxes(visible=False)
     fig.update_yaxes(visible=False)
@@ -133,10 +133,10 @@ def build_policy_chart(comparison, height=340):
 def build_counter_chart(rows, height=340):
     n = [r["n"] for r in rows]
     fig = go.Figure()
-    fig.add_trace(go.Scatter(x=n, y=[r["histogram_candidates"] for r in rows], mode="lines+markers", name="Histogramm (Eimer)", line=dict(color="#1f77b4")))
+    fig.add_trace(go.Scatter(x=n, y=[r["histogram_candidates"] for r in rows], mode="lines+markers", name="Histogramm (Bins)", line=dict(color="#1f77b4")))
     fig.add_trace(go.Scatter(x=n, y=[r["exact_candidates"] for r in rows], mode="lines+markers", name="Exakte Suche (alle Werte)", line=dict(color="#d62728")))
     fig.update_xaxes(title="Trainingszeilen")
-    fig.update_yaxes(title="Geprüfte Schnittkandidaten (ein Baum)", rangemode="tozero")
+    fig.update_yaxes(title="Geprüfte Split-Kandidaten (ein Baum)", rangemode="tozero")
     return lock_axes(fig, height, legend=dict(orientation="h", y=1.12))
 
 

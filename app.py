@@ -1,10 +1,10 @@
-"""LightGBM - blattweises Wachsen und Histogramm-Schnittsuche - interaktive Konzept-Demo
+"""LightGBM - blattweises Wachsen und Histogramm-Split-Suche - interaktive Konzept-Demo
 Sebastian Hanisch - Operations Research und Machine Learning
 
 Anders als die Fall-Demos im Portfolio (ein Anwendungsfall, mehrere Verfahren im Vergleich) zeigt diese Demo EIN Verfahren - LightGBM - und lässt stattdessen das Beispiel wachsen.
 Achtes Stück der Baumbasierten Linie der "Konzepte"-Reihe, viertes Stück des Boosting-Asts (nach AdaBoost, Gradient Boosting, XGBoost): dasselbe regularisierte Ziel wie XGBoost, aber zwei
-Änderungen am Baumkern, die reine Rechenzeit sparen - Histogramm-Schnittsuche (Eimer statt jeder einzelnen Schwelle) und blattweises statt ebenenweises Wachsen (immer das Blatt mit dem größten
-Gewinn zuerst).
+Änderungen am Baumkern, die reine Rechenzeit sparen - Histogramm-Split-Suche (Bins statt jeder einzelnen Schwelle) und blattweises statt ebenenweises Wachsen (immer das Blatt mit dem größten
+Gain zuerst).
 Siehe README für die Einordnung.
 
 Lauffähig mit: streamlit run app.py
@@ -71,12 +71,12 @@ def _counter_rows(num_leaves, max_bin, n_noise, label_noise):
     return ev.counter_rows(num_leaves, max_bin, n_noise, label_noise)
 
 
-st.title("🍃🌳 LightGBM – blattweises Wachsen und Histogramm-Schnittsuche")
+st.title("🍃🌳 LightGBM – blattweises Wachsen und Histogramm-Split-Suche")
 st.markdown(
     """
-**XGBoost** (voriges Stück) sucht bei jedem Schnitt die exakt beste Schwelle jedes Merkmals und wächst Ebene für Ebene. **LightGBM** (Ke et al. 2017) übernimmt dasselbe regularisierte Ziel
-und dieselbe Gewinnformel - ändert aber, WIE geschnitten und WANN geteilt wird, um Rechenzeit zu sparen: **Histogramm-Schnittsuche** (jedes Merkmal wird vorab in Eimer eingeteilt, nur die
-Eimer-Grenzen werden geprüft, nicht jede einzelne Schwelle) und **blattweises Wachsen** (immer das Blatt mit dem größten möglichen Gewinn wird als Nächstes geteilt, statt eine ganze Ebene
+**XGBoost** (voriges Stück) sucht bei jedem Split die exakt beste Schwelle jedes Merkmals und wächst Ebene für Ebene. **LightGBM** (Ke et al. 2017) übernimmt dasselbe regularisierte Ziel
+und dieselbe Gain-Formel - ändert aber, WIE geschnitten und WANN geteilt wird, um Rechenzeit zu sparen: **Histogramm-Split-Suche** (jedes Merkmal wird vorab in Bins eingeteilt, nur die
+Bin-Grenzen werden geprüft, nicht jede einzelne Schwelle) und **blattweises Wachsen** (immer das Blatt mit dem größten möglichen Gain wird als Nächstes geteilt, statt eine ganze Ebene
 abzuarbeiten, bevor die nächste beginnt).
 """
 )
@@ -84,7 +84,7 @@ st.caption(
     "Anders als die Fall-Demos im Portfolio, die an einem Anwendungsfall mehrere Verfahren vergleichen, zeigt diese Demo - achtes Stück der Baumbasierten Linie der \"Konzepte\"-Reihe und viertes "
     "Stück des **Boosting-Asts** (nach AdaBoost, Gradient Boosting, XGBoost) - **ein** Verfahren an einem wachsenden Beispiel. Das Verfahren geht auf Ke et al. (2017) zurück; alle Lieferungen, "
     "Merkmale und Zahlen dieser Demo sind erzeugt und gemessen - keine echten Daten. Der Baumkern (`lgbm_tree.py`) ist neu geschrieben; die echte `lightgbm`-Bibliothek kommt nur in den Tests als "
-    "Gegenprobe vor (über Rang-/Fehlergrenzen, nicht exakt - die eigene Eimer-Regel unterscheidet sich von der echten Bibliothek)."
+    "Gegenprobe vor (über Rang-/Fehlergrenzen, nicht exakt - die eigene Bin-Regel unterscheidet sich von der echten Bibliothek)."
 )
 st.caption(
     "**Bezug zu OR:** kürzere Rechenzeit je Baum erlaubt mehr Runden oder größere Datensätze im selben Zeitbudget - bei einer täglich neu zu berechnenden Lieferzeitprognose für die Tourenplanung "
@@ -94,12 +94,12 @@ st.caption(
 with st.expander("So funktioniert LightGBM", expanded=True):
     st.markdown(
         r"""
-1. **Eimer einmal bilden:** jedes Merkmal wird vor der ersten Runde in `max_bin` Eimer eingeteilt (Quantil-Grenzen über die ganze Trainingsmenge) - dieselben Eimer gelten für jede Runde und jeden Knoten.
-2. **Histogramm je Knoten:** für die Zeilen eines Knotens werden Gradient- und Hesse-Summen JE EIMER aufaddiert (ein Histogramm) - die Schnittsuche prüft dann nur noch die Eimer-Grenzen, mit
-   derselben Gewinnformel wie XGBoost: $0.5\big[\tfrac{G_L^2}{H_L+\lambda}+\tfrac{G_R^2}{H_R+\lambda}-\tfrac{G^2}{H+\lambda}\big]-\gamma$.
+1. **Bins einmal bilden:** jedes Merkmal wird vor der ersten Runde in `max_bin` Bins eingeteilt (Quantil-Grenzen über die ganze Trainingsmenge) - dieselben Bins gelten für jede Runde und jeden Knoten.
+2. **Histogramm je Knoten:** für die Zeilen eines Knotens werden Gradient- und Hesse-Summen JE BIN aufaddiert (ein Histogramm) - die Split-Suche prüft dann nur noch die Bin-Grenzen, mit
+   derselben Gain-Formel wie XGBoost: $0.5\big[\tfrac{G_L^2}{H_L+\lambda}+\tfrac{G_R^2}{H_R+\lambda}-\tfrac{G^2}{H+\lambda}\big]-\gamma$.
 3. **Differenz-Trick:** wird ein Blatt geteilt, wird nur das KLEINERE Kind direkt aus seinen Zeilen histogrammiert - das größere Kind ergibt sich als Elternhistogramm minus kleineres Kind.
-4. **Blattweises Wachsen:** eine Prioritätswarteschlange über alle noch teilbaren Blätter, sortiert nach ihrem besten möglichen Gewinn - immer das Blatt mit dem größten Gewinn wird als Nächstes
-   geteilt, bis `num_leaves` erreicht ist oder kein Blatt mehr einen positiven Gewinn hat.
+4. **Blattweises Wachsen:** eine Prioritätswarteschlange über alle noch teilbaren Blätter, sortiert nach ihrem besten möglichen Gain - immer das Blatt mit dem größten Gain wird als Nächstes
+   geteilt, bis `num_leaves` erreicht ist oder kein Blatt mehr einen positiven Gain hat.
         """
     )
 
@@ -119,11 +119,11 @@ with st.sidebar:
     task = st.selectbox("Aufgabe", C.TASKS, key="task_select", format_func=lambda k: C.TASK_LABELS[k])
     num_leaves = st.slider("Blätter je Baum", *bounds("num_leaves_slider"), key="num_leaves_slider", help="Das Wachstumsbudget je Baum - LightGBMs Haupt-Regler (statt Tiefe).")
     depth = st.slider("Tiefenobergrenze", *bounds("depth_slider"), key="depth_slider", help="Zusätzliche Bremse; bei 12 greift praktisch nur noch die Blattzahl.")
-    max_bin = st.slider("Eimer je Merkmal", *bounds("max_bin_slider"), key="max_bin_slider", help="Wie fein jedes Merkmal vorab eingeteilt wird - mehr Eimer nähern sich der exakten Schnittsuche an, kosten aber mehr Rechenzeit je Schnitt.")
+    max_bin = st.slider("Bins je Merkmal", *bounds("max_bin_slider"), key="max_bin_slider", help="Wie fein jedes Merkmal vorab eingeteilt wird - mehr Bins nähern sich der exakten Split-Suche an, kosten aber mehr Rechenzeit je Split.")
     n_rounds = st.slider("Zahl der Runden", *bounds("n_rounds_slider"), key="n_rounds_slider")
     lr = st.slider("Lernrate", *bounds("lr_slider"), key="lr_slider", step=0.01, format="%.2f")
     lam = st.slider("λ (L2 auf Blattgewichte)", *bounds("lam_slider"), key="lam_slider", step=0.1, format="%.1f")
-    gamma = st.slider("γ (Mindestgewinn je Schnitt)", *bounds("gamma_slider"), key="gamma_slider", step=0.1, format="%.1f")
+    gamma = st.slider("γ (Mindest-Gain je Split)", *bounds("gamma_slider"), key="gamma_slider", step=0.1, format="%.1f")
     mcw = st.slider("Mindest-Hessegewicht je Blatt", *bounds("mcw_slider"), key="mcw_slider", step=0.5, format="%.1f")
     subsample = st.slider("Teilstichprobe je Runde [%]", *bounds("subsample_slider"), key="subsample_slider", format="%.0f%%")
     st.markdown("**Daten**")
@@ -230,7 +230,7 @@ st.caption(f"Der Trainingsfehler sinkt fast durchgehend; der Testfehler erreicht
 
 st.markdown("**Wichtigkeit je Merkmal**")
 st.plotly_chart(build_importance(names, a.imp), width="stretch", key="importance_chart")
-st.caption("Gemittelt über alle Bäume des Ensembles: Summe der Schnittgewinne je Merkmal, auf 1 normiert.")
+st.caption("Gemittelt über alle Bäume des Ensembles: Summe der Split-Gains je Merkmal, auf 1 normiert.")
 
 st.markdown("---")
 
@@ -246,12 +246,12 @@ if st.session_state.get("policy_on"):
     sn, lc = comp["small_noisy"], comp["large_clean"]
     st.caption(f"15 Blätter je Baum, sonst Ihre aktuellen Einstellungen, Mittel über fünf Datensätze. Klein & verrauscht (400 Lieferungen, 6 Rauschmerkmale, 10 % falsche Etiketten): ebenenweise "
                f"leicht besser ({sn['level']:.1%} gegen {sn['leaf']:.1%}) - blattweise jagt hier eher dem Rauschen hinterher. Groß & sauber (3000 Lieferungen, 3 Rauschmerkmale, keine falschen "
-               f"Etiketten): blattweise gewinnt ({lc['leaf']:.1%} gegen {lc['level']:.1%}) - mit genug sauberen Daten nutzt die freie Wahl des besten Schnitts mehr, als sie schadet.")
+               f"Etiketten): blattweise gewinnt ({lc['leaf']:.1%} gegen {lc['level']:.1%}) - mit genug sauberen Daten nutzt die freie Wahl des besten Splits mehr, als sie schadet.")
 
 st.markdown("---")
 
 st.subheader("🔬 Zähler: Histogramme gegen exakte Suche")
-if st.button("Geprüfte Schnittkandidaten gegen die Trainingsmenge messen (dauert einen Moment)", key="counter_start"):
+if st.button("Geprüfte Split-Kandidaten gegen die Trainingsmenge messen (dauert einen Moment)", key="counter_start"):
     st.session_state["counter_on"] = True
 if st.session_state.get("counter_on"):
     with st.spinner("Baue je Trainingsmenge einen Baum und zähle mit ..."):
@@ -260,8 +260,8 @@ if st.session_state.get("counter_on"):
     small, large = crows[0], crows[-1]
     ratio = large["exact_candidates"] / large["histogram_candidates"]
     st.caption(f"Bei {small['train_rows']} Trainingszeilen prüft die Histogramm-Suche sogar MEHR Kandidaten als eine exakte Suche ({small['histogram_candidates']} gegen "
-               f"{small['exact_candidates']}) - die feste Eimerzahl lohnt sich erst, wenn die Knoten mehr Zeilen haben als Eimer. Bei {large['train_rows']} Zeilen dreht sich das Bild: die "
-               f"Histogramm-Suche bleibt bei {large['histogram_candidates']} Kandidaten (die Eimerzahl wächst nicht mit der Datenmenge), die exakte Suche bräuchte {large['exact_candidates']} - "
+               f"{small['exact_candidates']}) - die feste Bin-Zahl lohnt sich erst, wenn die Knoten mehr Zeilen haben als Bins. Bei {large['train_rows']} Zeilen dreht sich das Bild: die "
+               f"Histogramm-Suche bleibt bei {large['histogram_candidates']} Kandidaten (die Bin-Zahl wächst nicht mit der Datenmenge), die exakte Suche bräuchte {large['exact_candidates']} - "
                f"{ratio:.1f}-mal so viele.")
 
 st.markdown("---")
@@ -273,10 +273,10 @@ st.markdown(
     """
 | Annahme | Was passiert, wenn sie verletzt ist | Wer setzt an |
 |---|---|---|
-| **Blattweises Wachsen ist immer besser** | Auf kleinen, verrauschten Daten kann blattweises Wachsen dem Rauschen eher folgen als ebenenweises - gemessen oben. | γ (Mindestgewinn) oder weniger Blätter als Bremse |
-| **Mehr Eimer sind immer besser** | Mehr Eimer nähern sich der exakten Suche an, kosten aber mehr Rechenzeit je Schnitt - bei sehr kleinen Datensätzen ist der Histogramm-Vorteil sogar negativ (gemessen oben). | Eimerzahl an die Datenmenge anpassen, nicht pauschal maximieren |
-| **Exakte Schwellen** | Eimer-Grenzen sind nur Näherungen der besten Schwelle - bei wenigen, groben Eimern kann die wahre beste Schwelle zwischen zwei Eimern verschwinden (siehe "Grobe Eimer"-Beispiel). | mehr Eimer, oder XGBoost/Gradient Boosting bei kleinen Datensätzen |
-| **Globale Eimer-Grenzen für alle Runden** | Dieselben Eimer gelten für jede Runde - bei sich stark verändernden Pseudo-Residuen könnten andere Grenzen manche Runden besser bedienen; das echte LightGBM macht das genauso, aus Geschwindigkeitsgründen. | - |
+| **Blattweises Wachsen ist immer besser** | Auf kleinen, verrauschten Daten kann blattweises Wachsen dem Rauschen eher folgen als ebenenweises - gemessen oben. | γ (Mindest-Gain) oder weniger Blätter als Bremse |
+| **Mehr Bins sind immer besser** | Mehr Bins nähern sich der exakten Suche an, kosten aber mehr Rechenzeit je Split - bei sehr kleinen Datensätzen ist der Histogramm-Vorteil sogar negativ (gemessen oben). | Bin-Zahl an die Datenmenge anpassen, nicht pauschal maximieren |
+| **Exakte Schwellen** | Bin-Grenzen sind nur Näherungen der besten Schwelle - bei wenigen, groben Bins kann die wahre beste Schwelle zwischen zwei Bins verschwinden (siehe "Grobe Bins"-Beispiel). | mehr Bins, oder XGBoost/Gradient Boosting bei kleinen Datensätzen |
+| **Globale Bin-Grenzen für alle Runden** | Dieselben Bins gelten für jede Runde - bei sich stark verändernden Pseudo-Residuen könnten andere Grenzen manche Runden besser bedienen; das echte LightGBM macht das genauso, aus Geschwindigkeitsgründen. | - |
 """
 )
 
@@ -285,19 +285,19 @@ st.markdown("---")
 with st.expander("📐 Mathematische Formulierung"):
     st.markdown(
         r"""
-**Histogramm-Schnittsuche.** Jedes Merkmal $f$ wird vorab in Eimer $[e_0,e_1),[e_1,e_2),\dots$ eingeteilt (Quantil-Grenzen über die ganze Trainingsmenge). Für einen Knoten mit Zeilen $R$ ist das
-Histogramm $H_f[k] = \big(\sum_{i\in R,\,x_{if}\in\text{Eimer }k} g_i,\ \sum_{i\in R,\,x_{if}\in\text{Eimer }k} h_i\big)$ - danach ist die Schnittsuche genau wie in xgboost-demo, nur über die
-Eimer-Grenzen statt über jede einzelne Schwelle: $\text{Gewinn} = 0.5\big[\tfrac{G_L^2}{H_L+\lambda}+\tfrac{G_R^2}{H_R+\lambda}-\tfrac{G^2}{H+\lambda}\big]-\gamma$, Blattwert $-\tfrac{G}{H+\lambda}$.
+**Histogramm-Split-Suche.** Jedes Merkmal $f$ wird vorab in Bins $[e_0,e_1),[e_1,e_2),\dots$ eingeteilt (Quantil-Grenzen über die ganze Trainingsmenge). Für einen Knoten mit Zeilen $R$ ist das
+Histogramm $H_f[k] = \big(\sum_{i\in R,\,x_{if}\in\text{Bin }k} g_i,\ \sum_{i\in R,\,x_{if}\in\text{Bin }k} h_i\big)$ - danach ist die Split-Suche genau wie in xgboost-demo, nur über die
+Bin-Grenzen statt über jede einzelne Schwelle: $\text{Gain} = 0.5\big[\tfrac{G_L^2}{H_L+\lambda}+\tfrac{G_R^2}{H_R+\lambda}-\tfrac{G^2}{H+\lambda}\big]-\gamma$, Blattwert $-\tfrac{G}{H+\lambda}$.
 
 **Differenz-Trick.** Für einen Knoten mit Histogramm $H$, der in L und R geteilt wird: wird L direkt aus seinen Zeilen histogrammiert, ergibt sich $H_R = H - H_L$ ohne weiteren Zeilenzugriff -
 LightGBM histogrammiert deshalb immer das KLEINERE Kind direkt.
 
-**Blattweises Wachsen.** Eine Prioritätswarteschlange über alle Blätter mit einem gültigen Schnitt, geordnet nach ihrem Gewinn; wiederholt wird das Blatt mit dem größten Gewinn geteilt, bis
-`num_leaves` Blätter erreicht sind oder kein Blatt mehr einen positiven Gewinn hat. Bei GLEICHER Blattzahl ist das Ergebnis nur dann identisch mit ebenenweisem Wachsen, wenn beide Verfahren
-ohnehin alle möglichen positiven Schnitte machen (kein bindendes Blattbudget) - sobald das Budget bindet, wählt blattweise die wertvollsten Schnitte zuerst, ebenenweise nimmt sie in
+**Blattweises Wachsen.** Eine Prioritätswarteschlange über alle Blätter mit einem gültigen Split, geordnet nach ihrem Gain; wiederholt wird das Blatt mit dem größten Gain geteilt, bis
+`num_leaves` Blätter erreicht sind oder kein Blatt mehr einen positiven Gain hat. Bei GLEICHER Blattzahl ist das Ergebnis nur dann identisch mit ebenenweisem Wachsen, wenn beide Verfahren
+ohnehin alle möglichen positiven Splits machen (kein bindendes Blattbudget) - sobald das Budget bindet, wählt blattweise die wertvollsten Splits zuerst, ebenenweise nimmt sie in
 Entstehungsreihenfolge (geprüft in `tests/test_algorithm.py`).
 
-Implementiert in `lgbm_tree.py` (Eimer, Histogramm, Differenz-Trick, blatt-/ebenenweises Wachsen), `lgbm_algorithm.py` (Fit, Vorhersage), `lgbm_evaluation.py` (Analyse, Rundenkurve, die zwei Experimente).
+Implementiert in `lgbm_tree.py` (Bins, Histogramm, Differenz-Trick, blatt-/ebenenweises Wachsen), `lgbm_algorithm.py` (Fit, Vorhersage), `lgbm_evaluation.py` (Analyse, Rundenkurve, die zwei Experimente).
         """
     )
 

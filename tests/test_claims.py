@@ -9,7 +9,7 @@ import lgbm_constants as C
 import lgbm_evaluation as ev
 import lgbm_scenario as S
 
-PRESET = {"standard": "🌳 Standard", "stump": "🪓 Ein Schritt (kein Boosting)", "coarse": "🔲 Grobe Eimer", "fine": "🔬 Feine Eimer", "reg": "📈 Regression Standard"}
+PRESET = {"standard": "🌳 Standard", "stump": "🪓 Ein Schritt (kein Boosting)", "coarse": "🔲 Grobe Bins", "fine": "🔬 Feine Bins", "reg": "📈 Regression Standard"}
 
 
 @functools.lru_cache(maxsize=None)

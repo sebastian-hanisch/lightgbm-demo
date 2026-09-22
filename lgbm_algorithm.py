@@ -1,5 +1,5 @@
-"""LightGBM (Ke et al. 2017): dieselbe additive Boosting-Idee und dasselbe regularisierte Ziel wie xgboost-demo (`F_m = F_{m-1} + Lernrate * Baum_m`, Blattwert `-G/(H+λ)`, Schnittgewinn
-`0.5*[GL²/(HL+λ)+GR²/(HR+λ)-G²/(H+λ)]-γ`) - der Unterschied liegt allein im Baumkern (`lgbm_tree.py`): Histogramm-Schnittsuche statt exakter Suche, blattweises statt ebenenweises Wachsen."""
+"""LightGBM (Ke et al. 2017): dieselbe additive Boosting-Idee und dasselbe regularisierte Ziel wie xgboost-demo (`F_m = F_{m-1} + Lernrate * Baum_m`, Blattwert `-G/(H+λ)`, Split-Gain
+`0.5*[GL²/(HL+λ)+GR²/(HR+λ)-G²/(H+λ)]-γ`) - der Unterschied liegt allein im Baumkern (`lgbm_tree.py`): Histogramm-Split-Suche statt exakter Suche, blattweises statt ebenenweises Wachsen."""
 
 from dataclasses import dataclass
 

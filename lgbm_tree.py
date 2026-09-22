@@ -1,14 +1,14 @@
 """Der LightGBM-Baumkern (Ke et al. 2017, "LightGBM: A Highly Efficient Gradient Boosting Decision Tree"): zwei Unterschiede zu xgboost-demo, beide um Rechenzeit zu sparen, nicht um die Mathematik zu ändern.
 
-1. **Histogramm-Schnittsuche statt exakter Suche:** jedes Merkmal wird VOR dem Wachsen einmal in `max_bin` Eimer eingeteilt (Quantil-Grenzen über die ganze Trainingsmenge, einmal berechnet, für alle Runden
-   und alle Knoten wiederverwendet). Ein Knoten braucht dann nur noch die Summen von Gradient und Hesse-Diagonale JE EIMER (ein Histogramm), nicht mehr jede einzelne Schwelle - die Schnittsuche kostet
-   `O(Eimer)` statt `O(Zeilen)` je Merkmal.
+1. **Histogramm-Split-Suche statt exakter Suche:** jedes Merkmal wird VOR dem Wachsen einmal in `max_bin` Bins eingeteilt (Quantil-Grenzen über die ganze Trainingsmenge, einmal berechnet, für alle Runden
+   und alle Knoten wiederverwendet). Ein Knoten braucht dann nur noch die Summen von Gradient und Hesse-Diagonale JE BIN (ein Histogramm), nicht mehr jede einzelne Schwelle - die Split-Suche kostet
+   `O(Bins)` statt `O(Zeilen)` je Merkmal.
 2. **Blattweises statt ebenenweises Wachsen:** cart-demo/gradient-boosting-demo/xgboost-demo wachsen Ebene für Ebene (jeder Knoten einer Ebene wird geteilt, bevor die nächste beginnt). LightGBM wählt
-   stattdessen IMMER das Blatt mit dem größten möglichen Gewinn als Nächstes (eine Prioritätswarteschlange) - bei gleicher Blattzahl meist tiefere, unregelmäßigere Bäume mit weniger verschwendeten Schnitten
+   stattdessen IMMER das Blatt mit dem größten möglichen Gain als Nächstes (eine Prioritätswarteschlange) - bei gleicher Blattzahl meist tiefere, unregelmäßigere Bäume mit weniger verschwendeten Splits
    auf uninteressanten Ästen.
 
 **Differenz-Trick:** wird ein Blatt geteilt, wird nur das KLEINERE Kind direkt aus seinen Zeilen histogrammiert; das größere Kind ergibt sich als `Histogramm(Eltern) - Histogramm(kleineres Kind)` - spart
-eine zweite Zeilen-Abtastung. Die Gewinnformel selbst ist wortgleich mit xgboost-demo (`0.5*[GL²/(HL+λ)+GR²/(HR+λ)-G²/(H+λ)]-γ`, Blattwert `-G/(H+λ)`) - der Unterschied liegt allein darin, WELCHE
+eine zweite Zeilen-Abtastung. Die Gain-Formel selbst ist wortgleich mit xgboost-demo (`0.5*[GL²/(HL+λ)+GR²/(HR+λ)-G²/(H+λ)]-γ`, Blattwert `-G/(H+λ)`) - der Unterschied liegt allein darin, WELCHE
 Schwellen geprüft werden und in WELCHER REIHENFOLGE Knoten geteilt werden, nicht in der Optimierung selbst."""
 
 import heapq
@@ -27,7 +27,7 @@ class Tree:
     left: np.ndarray
     right: np.ndarray
     value: np.ndarray            # Newton-Schritt -G/(H+lambda)
-    gain: np.ndarray             # Gewinn des Schnitts an diesem Knoten (0 bei Blättern)
+    gain: np.ndarray             # Gain des Splits an diesem Knoten (0 bei Blättern)
     g_sum: np.ndarray
     h_sum: np.ndarray
     n: np.ndarray
@@ -55,10 +55,10 @@ class Tree:
         return np.nonzero(self.feature >= 0)[0]
 
 
-# --- Globale Eimer-Grenzen (einmal je Fit, für alle Runden und Knoten wiederverwendet) -----------------------------------------------------------------
+# --- Globale Bin-Grenzen (einmal je Fit, für alle Runden und Knoten wiederverwendet) -----------------------------------------------------------------
 
 def build_bin_edges(X, max_bin):
-    """Quantil-Grenzen je Merkmal (ungefähr gleich viele Trainingszeilen je Eimer), doppelte Grenzen bei vielen Wiederholungen entfernt. Rückgabe: Liste von `d` aufsteigenden Kantenfeldern."""
+    """Quantil-Grenzen je Merkmal (ungefähr gleich viele Trainingszeilen je Bin), doppelte Grenzen bei vielen Wiederholungen entfernt. Rückgabe: Liste von `d` aufsteigenden Kantenfeldern."""
     edges = []
     for f in range(X.shape[1]):
         q = np.linspace(0.0, 1.0, max_bin + 1)[1:-1]
@@ -68,7 +68,7 @@ def build_bin_edges(X, max_bin):
 
 
 def digitize(X, edges):
-    """Eimer-Nummer jeder Zeile je Merkmal (0 .. len(edges[f])), vektorisiert über `np.searchsorted`."""
+    """Bin-Nummer jeder Zeile je Merkmal (0 .. len(edges[f])), vektorisiert über `np.searchsorted`."""
     m, d = X.shape
     bins = np.empty((m, d), dtype=np.int32)
     for f in range(d):
@@ -76,10 +76,10 @@ def digitize(X, edges):
     return bins
 
 
-# --- Histogramm und Schnittsuche ------------------------------------------------------------------------------------------------------------------------
+# --- Histogramm und Split-Suche ------------------------------------------------------------------------------------------------------------------------
 
 def histogram(bins_f, grad, hess, n_bins):
-    """(Gradientensumme, Hessesumme, Zeilenzahl) je Eimer für ein Merkmal."""
+    """(Gradientensumme, Hessesumme, Zeilenzahl) je Bin für ein Merkmal."""
     g = np.bincount(bins_f, weights=grad, minlength=n_bins)
     h = np.bincount(bins_f, weights=hess, minlength=n_bins)
     c = np.bincount(bins_f, minlength=n_bins)
@@ -87,7 +87,7 @@ def histogram(bins_f, grad, hess, n_bins):
 
 
 def best_split_from_histograms(hist_g, hist_h, hist_c, edges, lam, gamma, min_child_weight, min_child_samples):
-    """(Merkmal, Schwelle, Gewinn) des besten Schnitts über alle Eimer-Grenzen aller Merkmale, aus den (schon aufgebauten) Histogrammen - kein weiterer Zeilenzugriff nötig.
+    """(Merkmal, Schwelle, Gain) des besten Splits über alle Bin-Grenzen aller Merkmale, aus den (schon aufgebauten) Histogrammen - kein weiterer Zeilenzugriff nötig.
     `min_child_samples` prüft die ZEILENZAHL je Kind (aus dem Zähl-Histogramm), `min_child_weight` die Hesse-Summe - beide unabhängig, wie im echten LightGBM."""
     Gtot, Htot = float(hist_g[0].sum()), float(hist_h[0].sum())
     Ctot = int(hist_c[0].sum())
@@ -111,10 +111,10 @@ def best_split_from_histograms(hist_g, hist_h, hist_c, edges, lam, gamma, min_ch
 # --- Wachsen mit Differenz-Trick: blattweise (Standard) oder ebenenweise (nur fürs Experiment) ---------------------------------------------------------
 
 def grow(X, grad, hess, edges, num_leaves=31, max_depth=None, lam=1.0, gamma=0.0, min_child_weight=1.0, min_child_samples=1, policy="leaf", stats=None):
-    """Wächst auf denselben Histogrammen mit demselben Differenz-Trick, nur die REIHENFOLGE unterscheidet sich: `policy="leaf"` (Standard) nimmt immer das Blatt mit dem größten möglichen Gewinn
+    """Wächst auf denselben Histogrammen mit demselben Differenz-Trick, nur die REIHENFOLGE unterscheidet sich: `policy="leaf"` (Standard) nimmt immer das Blatt mit dem größten möglichen Gain
     als Nächstes (Prioritätswarteschlange); `policy="level"` nimmt sie in Entstehungsreihenfolge (FIFO) - Ebene für Ebene, wie cart-demo/xgboost-demo, nur eben über Histogramme statt exakter Suche.
-    Beide stoppen bei `num_leaves`, der Tiefengrenze oder wenn kein Blatt mehr einen positiven Gewinn hat. Für jedes neue Kind wird nur das KLEINERE direkt histogrammiert, das größere per Differenz.
-    `stats` (optional, dict): wird mit `histograms_built` (Aufrufe von `histogram()`, je Knoten und Merkmal) und `candidates_checked` (geprüfte Eimer-Grenzen über alle Schnittversuche) befüllt -
+    Beide stoppen bei `num_leaves`, der Tiefengrenze oder wenn kein Blatt mehr einen positiven Gain hat. Für jedes neue Kind wird nur das KLEINERE direkt histogrammiert, das größere per Differenz.
+    `stats` (optional, dict): wird mit `histograms_built` (Aufrufe von `histogram()`, je Knoten und Merkmal) und `candidates_checked` (geprüfte Bin-Grenzen über alle Split-Versuche) befüllt -
     nur fürs Experiment "Zähler gegen exakte Suche" gedacht, kostet sonst nichts (Standardaufruf ohne `stats` bleibt unverändert)."""
     X = np.asarray(X, dtype=float)
     grad = np.asarray(grad, dtype=float)
@@ -147,7 +147,7 @@ def grow(X, grad, hess, edges, num_leaves=31, max_depth=None, lam=1.0, gamma=0.0
 
     root = new_node(np.arange(n), 0, hist_of(np.arange(n)))
     counter = itertools.count()
-    heap = []                                                                  # policy="leaf": Max-Heap (Gewinn, Zähler, Knoten, Schnitt)
+    heap = []                                                                  # policy="leaf": Max-Heap (Gain, Zähler, Knoten, Split)
     queue = []                                                                 # policy="level": FIFO derselben Einträge
 
     def push(t):
@@ -178,7 +178,7 @@ def grow(X, grad, hess, edges, num_leaves=31, max_depth=None, lam=1.0, gamma=0.0
 
     push(root)
     n_splits = 0
-    while frontier_nonempty() and (len(feature) - n_splits) < num_leaves:      # aktuelle Blattzahl = Knoten minus bisherige Schnitte
+    while frontier_nonempty() and (len(feature) - n_splits) < num_leaves:      # aktuelle Blattzahl = Knoten minus bisherige Splits
         t, (f, thr, g) = pop_next()
         idx = node_idx[t]
         go_left = X[idx, f] <= thr

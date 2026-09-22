@@ -147,7 +147,7 @@ def test_permalink_parameters_are_clamped():
 
 
 def test_the_address_bar_mirrors_the_settings():
-    at = _run(lambda a: _apply(a, C.PRESETS["🔲 Grobe Eimer"]))
+    at = _run(lambda a: _apply(a, C.PRESETS["🔲 Grobe Bins"]))
     assert str(at.query_params["bin"]) in ("8", "['8']")
 
 

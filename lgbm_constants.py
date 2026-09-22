@@ -39,17 +39,17 @@ PRESETS = {
                         min_child_weight=1.0, subsample=100, n=DEFAULT_N, n_noise=DEFAULT_NOISE, label_noise=0, seed=DEFAULT_SEED, fx=0, fy=3),
     "🪓 Ein Schritt (kein Boosting)": dict(task="class", num_leaves=4, depth=DEFAULT_DEPTH, max_bin=DEFAULT_MAX_BIN, n_rounds=1, lr=1.0, lam=1.0, gamma=0.0, min_child_weight=1.0,
                                           subsample=100, n=DEFAULT_N, n_noise=DEFAULT_NOISE, label_noise=0, seed=DEFAULT_SEED, fx=0, fy=3),
-    "🔲 Grobe Eimer": dict(task="class", num_leaves=DEFAULT_NUM_LEAVES, depth=DEFAULT_DEPTH, max_bin=8, n_rounds=DEFAULT_N_ROUNDS, lr=DEFAULT_LR, lam=1.0, gamma=0.0,
+    "🔲 Grobe Bins": dict(task="class", num_leaves=DEFAULT_NUM_LEAVES, depth=DEFAULT_DEPTH, max_bin=8, n_rounds=DEFAULT_N_ROUNDS, lr=DEFAULT_LR, lam=1.0, gamma=0.0,
                           min_child_weight=1.0, subsample=100, n=DEFAULT_N, n_noise=DEFAULT_NOISE, label_noise=0, seed=DEFAULT_SEED, fx=0, fy=3),
-    "🔬 Feine Eimer": dict(task="class", num_leaves=DEFAULT_NUM_LEAVES, depth=DEFAULT_DEPTH, max_bin=255, n_rounds=DEFAULT_N_ROUNDS, lr=DEFAULT_LR, lam=1.0, gamma=0.0,
+    "🔬 Feine Bins": dict(task="class", num_leaves=DEFAULT_NUM_LEAVES, depth=DEFAULT_DEPTH, max_bin=255, n_rounds=DEFAULT_N_ROUNDS, lr=DEFAULT_LR, lam=1.0, gamma=0.0,
                           min_child_weight=1.0, subsample=100, n=DEFAULT_N, n_noise=DEFAULT_NOISE, label_noise=0, seed=DEFAULT_SEED, fx=0, fy=3),
     "📈 Regression Standard": dict(task="reg", num_leaves=DEFAULT_NUM_LEAVES, depth=DEFAULT_DEPTH, max_bin=DEFAULT_MAX_BIN, n_rounds=DEFAULT_N_ROUNDS, lr=DEFAULT_LR, lam=1.0, gamma=0.0,
                                    min_child_weight=1.0, subsample=100, n=DEFAULT_N, n_noise=DEFAULT_NOISE, label_noise=0, seed=DEFAULT_SEED, fx=0, fy=3),
 }
 PRESET_HELP = {
-    "🌳 Standard": "31 Blätter, 60 Runden, Lernrate 0.1, 63 Eimer je Merkmal, λ = 1: Trainingsfehler 6.1 %, Testfehler 16.7 % (Raten: 46.4 %), 975 Blätter insgesamt über alle Runden.",
+    "🌳 Standard": "31 Blätter, 60 Runden, Lernrate 0.1, 63 Bins je Merkmal, λ = 1: Trainingsfehler 6.1 %, Testfehler 16.7 % (Raten: 46.4 %), 975 Blätter insgesamt über alle Runden.",
     "🪓 Ein Schritt (kein Boosting)": "Ein einzelner Baum mit höchstens 4 Blättern (Lernrate 1, keine weiteren Runden): Testfehler 18.6 % - kaum besser als Raten.",
-    "🔲 Grobe Eimer": "Nur 8 Eimer je Merkmal statt 63: Testfehler steigt auf 19.7 % (Standard: 16.7 %) - zu wenige Eimer verwischen die beste Schwelle.",
-    "🔬 Feine Eimer": "255 statt 63 Eimer je Merkmal (nahe an exakter Suche): Testfehler sinkt leicht auf 16.1 %, der Trainingsfehler fast auf 0 % (0.2 %) - mehr Eimer nähern sich der exakten Schnittsuche an, kosten aber mehr Rechenzeit je Schnitt.",
+    "🔲 Grobe Bins": "Nur 8 Bins je Merkmal statt 63: Testfehler steigt auf 19.7 % (Standard: 16.7 %) - zu wenige Bins verwischen die beste Schwelle.",
+    "🔬 Feine Bins": "255 statt 63 Bins je Merkmal (nahe an exakter Suche): Testfehler sinkt leicht auf 16.1 %, der Trainingsfehler fast auf 0 % (0.2 %) - mehr Bins nähern sich der exakten Split-Suche an, kosten aber mehr Rechenzeit je Split.",
     "📈 Regression Standard": "31 Blätter, 60 Runden, Lernrate 0.1, Ziel Lieferdauer: Test-RMSE 10.5 Minuten, 1842 Blätter insgesamt.",
 }

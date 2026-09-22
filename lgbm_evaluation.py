@@ -1,4 +1,4 @@
-"""Messungen an LightGBM: Testfehler blatt- gegen ebenenweise bei gleicher Blattzahl auf kleinen/verrauschten gegen großen/sauberen Daten (Überanpassung), Zähler (Histogramme, geprüfte Schnitte)
+"""Messungen an LightGBM: Testfehler blatt- gegen ebenenweise bei gleicher Blattzahl auf kleinen/verrauschten gegen großen/sauberen Daten (Überanpassung), Zähler (Histogramme, geprüfte Splits)
 gegen exakte Suche bei wachsender Datenmenge."""
 
 from dataclasses import dataclass
@@ -107,7 +107,7 @@ def best_round(rows):
 # --- Blattweise gegen ebenenweise bei gleicher Blattzahl --------------------------------------------------------------------------------------------
 
 def policy_rows(num_leaves, n_rounds, lr, max_bin, lam, gamma, min_child_weight, n, n_noise, label_noise, seeds=C.SWEEP_SEEDS):
-    """Testfehler blatt- gegen ebenenweise (`lgbm_tree.grow(..., policy=...)`), gemittelt über mehrere Datensätze, bei sonst identischen Einstellungen (nur die Reihenfolge der Schnitte unterscheidet sich)."""
+    """Testfehler blatt- gegen ebenenweise (`lgbm_tree.grow(..., policy=...)`), gemittelt über mehrere Datensätze, bei sonst identischen Einstellungen (nur die Reihenfolge der Splits unterscheidet sich)."""
     rows = {}
     for policy in ("leaf", "level"):
         errs = []
@@ -128,14 +128,14 @@ def policy_comparison(num_leaves, n_rounds, lr, max_bin, lam, gamma, min_child_w
     return {"small_noisy": small, "large_clean": large}
 
 
-# --- Zähler: Histogramme und geprüfte Schnitte gegen exakte Suche ------------------------------------------------------------------------------------
+# --- Zähler: Histogramme und geprüfte Splits gegen exakte Suche ------------------------------------------------------------------------------------
 
 N_GRID = (400, 800, 1200, 2000, 3000)
 
 
 def counter_rows(num_leaves, max_bin, n_noise, label_noise, seed=C.DEFAULT_SEED, grid=N_GRID):
-    """Für eine wachsende Trainingsmenge: geprüfte Schnittkandidaten mit Histogrammen (ein Baum) gegen eine exakte Suche derselben Baumgröße (Summe (Zeilen im Knoten - 1) * Merkmale über alle
-    tatsächlichen Schnitte des gewachsenen Baums) - zeigt, dass der Histogramm-Vorteil mit der Datenmenge wächst (Eimerzahl bleibt fest, exakte Schnittsuche wächst mit den Zeilen)."""
+    """Für eine wachsende Trainingsmenge: geprüfte Split-Kandidaten mit Histogrammen (ein Baum) gegen eine exakte Suche derselben Baumgröße (Summe (Zeilen im Knoten - 1) * Merkmale über alle
+    tatsächlichen Splits des gewachsenen Baums) - zeigt, dass der Histogramm-Vorteil mit der Datenmenge wächst (Bin-Zahl bleibt fest, exakte Split-Suche wächst mit den Zeilen)."""
     rows = []
     for n in grid:
         ds = S.generate_dataset(n, n_noise, label_noise, seed)

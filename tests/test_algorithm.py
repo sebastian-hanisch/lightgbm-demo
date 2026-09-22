@@ -1,4 +1,4 @@
-"""LightGBM gegen unabhängige Referenzen: die Histogramm-Schnittsuche gegen Brute-Force über dieselben Eimer-Grenzen, der Differenz-Trick (größeres Kind = Elternhistogramm minus kleineres Kind) gegen
+"""LightGBM gegen unabhängige Referenzen: die Histogramm-Split-Suche gegen Brute-Force über dieselben Bin-Grenzen, der Differenz-Trick (größeres Kind = Elternhistogramm minus kleineres Kind) gegen
 direkte Neuberechnung, blattweises Wachsen erzeugt bei GLEICHER Blattzahl eine strukturell andere (unregelmäßigere) Baumform als ebenenweises Wachsen (xgboost-demo), Vorhersagen über Rang-/Fehlergrenzen
 gegen die echte `lightgbm`-Bibliothek (die eigene Binning-Regel unterscheidet sich - kein exakter Abgleich, siehe README)."""
 
@@ -29,7 +29,7 @@ def _cls(n=400, d=5, seed=0, noise=0.5):
     return X, y
 
 
-# --- Histogramm-Schnittsuche gegen Brute-Force über dieselben Eimer-Grenzen --------------------------------------------------------------------------
+# --- Histogramm-Split-Suche gegen Brute-Force über dieselben Bin-Grenzen --------------------------------------------------------------------------
 
 def test_histogram_split_matches_brute_force_over_the_same_bin_edges():
     rng = np.random.default_rng(1)
@@ -94,7 +94,7 @@ def test_leaf_wise_growth_differs_structurally_from_level_wise_at_the_same_leaf_
     X = rng.normal(size=(n, d))
     grad = rng.normal(size=n)
     hess = rng.uniform(0.5, 1.5, n)
-    edges = T.build_bin_edges(X, max_bin=255)                                # feine Eimer ~ exakte Suche, damit nur das Wachstumsmuster den Unterschied macht
+    edges = T.build_bin_edges(X, max_bin=255)                                # feine Bins ~ exakte Suche, damit nur das Wachstumsmuster den Unterschied macht
     leafwise = T.grow(X, grad, hess, edges, num_leaves=13, max_depth=12, lam=1.0, gamma=0.0, min_child_weight=0.0, min_child_samples=1)
     levelwise = XT.grow(X, grad, hess, max_depth=4, lam=1.0, gamma=0.0, min_child_weight=0.0)
     assert leafwise.n_leaves == levelwise.n_leaves == 13
@@ -114,7 +114,7 @@ def test_leaf_wise_growth_always_picks_the_single_best_available_gain():
     edges = T.build_bin_edges(X, max_bin=32)
     tree = T.grow(X, grad, hess, edges, num_leaves=10, max_depth=12, lam=1.0, gamma=0.0, min_child_weight=0.0, min_child_samples=1)
     gains_in_order = [tree.gain[t] for t in sorted(tree.internal_nodes(), key=lambda t: tree.split_order[t])]
-    assert all(g >= -1e-9 for g in gains_in_order)                             # jeder gewählte Schnitt hatte zur Zeit seiner Wahl positiven Gewinn
+    assert all(g >= -1e-9 for g in gains_in_order)                             # jeder gewählte Split hatte zur Zeit seiner Wahl positiven Gain
 
 
 # --- Fast exakt / über Toleranz gegen die echte lightgbm-Bibliothek ---------------------------------------------------------------------------------
