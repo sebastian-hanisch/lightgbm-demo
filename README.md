@@ -1,5 +1,7 @@
 # LightGBM – blattweises Wachsen und Histogramm-Split-Suche – Streamlit-Demo
 
+**[→ Demo live ausprobieren](https://sebastianhanisch-lightgbm-demo.streamlit.app/)**
+
 Achtes Stück der **Baumbasierten Linie** der "Konzepte"-Reihe für die Website "Sebastian Hanisch – Operations Research und Machine Learning" und das **vierte Stück des Boosting-Asts**
 (nach AdaBoost, Gradient Boosting, XGBoost): anders als die Fall-Demos im Portfolio (ein Anwendungsfall, mehrere Verfahren im Vergleich) zeigt diese Demo **ein** Verfahren – **LightGBM**
 (Ke et al. 2017) – an einem wachsenden Beispiel.
