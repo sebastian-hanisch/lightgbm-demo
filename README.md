@@ -26,9 +26,9 @@ CART → AdaBoost → Gradient Boosting → XGBoost → LightGBM (dieses Stück)
 | **Differenz-Trick gegen direkte Neuberechnung** | ✅ Das größere Kind aus `Elternhistogramm − kleineres Kind` stimmt exakt mit einer direkten Neuberechnung aus seinen eigenen Zeilen überein. |
 | **Blattweise ≠ Ebenenweise bei gleicher Blattzahl** | ✅ Auf denselben Histogrammen gewachsen (nur die Reihenfolge unterscheidet sich): bei 13 Blättern erreicht blattweises Wachsen Tiefen von 1 bis 8, ebenenweises bleibt auf 2 bis 4 – strukturell verschiedene Bäume, gleiche Blattzahl. |
 | **Kreuzprobe mit der echten `lightgbm`-Bibliothek** | ⚠️ Nur über Rang-/Fehlergrenzen (Korrelation > 0,98, RMSE-Abweichung < 20 %) – die eigene Quantil-Bin-Regel unterscheidet sich von der echten Bibliothek, kein exakter Abgleich. |
-| **Testfehler blatt- gegen ebenenweise, klein & verrauscht** (400 Lieferungen, 6 Rauschmerkmale, 10 % falsche Etiketten, 15 Blätter, Mittel über fünf Datensätze) | ⚠️ Ebenenweise leicht besser (19,2 % gegen 19,7 %) – blattweises Wachsen jagt hier eher dem Rauschen hinterher. |
-| **Testfehler blatt- gegen ebenenweise, groß & sauber** (3000 Lieferungen, 3 Rauschmerkmale, keine falschen Etiketten, 15 Blätter, Mittel über fünf Datensätze) | ✅ Blattweise gewinnt (14,7 % gegen 15,3 %) – mit genug sauberen Daten nutzt die freie Wahl des besten Splits mehr, als sie schadet. |
-| **Zähler: Histogramme gegen exakte Suche** (31 Blätter, 63 Bins, wachsende Trainingsmenge) | ⚠️ Bei 280 Trainingszeilen prüft die Histogramm-Suche sogar MEHR Kandidaten als eine exakte Suche (21 138 gegen 14 663) – der Vorteil kippt erst bei rund 550–600 Zeilen. Bei 2100 Zeilen ist die exakte Suche schon 3,0-mal so teuer wie die Histogramm-Suche (deren Bin-Zahl nicht mit der Datenmenge wächst). |
+| **Testfehler blatt- gegen ebenenweise, klein & verrauscht** (400 Lieferungen, 6 Rauschmerkmale, 10 % falsche Etiketten, 15 Blätter, Mittel über fünf Datensätze) | ⚠️ Ebenenweise besser (19,5 % gegen 21,0 %) – blattweises Wachsen jagt hier eher dem Rauschen hinterher. |
+| **Testfehler blatt- gegen ebenenweise, groß & sauber** (3000 Lieferungen, 3 Rauschmerkmale, keine falschen Etiketten, 15 Blätter, Mittel über fünf Datensätze) | ⚠️ Praktisch gleichauf (blattweise 13,4 %, ebenenweise 13,5 %) – der frühere Vorsprung von blattweise (14,7 % gegen 15,3 %) beruhte auf dem Bin-Fehler unten. |
+| **Zähler: Histogramme gegen exakte Suche** (31 Blätter, 63 Bins, wachsende Trainingsmenge) | ⚠️ Bei 280 Trainingszeilen prüft die Histogramm-Suche sogar MEHR Kandidaten als eine exakte Suche (21 138 gegen 14 443) – der Vorteil kippt zwischen 280 und 560 Zeilen (bei 560 ist die exakte Suche schon 1,06-mal so teuer). Bei 2100 Zeilen ist die exakte Suche schon 3,0-mal so teuer wie die Histogramm-Suche (deren Bin-Zahl nicht mit der Datenmenge wächst). |
 
 ## Was die Demo zeigt
 
@@ -53,17 +53,20 @@ CART → AdaBoost → Gradient Boosting → XGBoost → LightGBM (dieses Stück)
 - **Ein einzelner Baum zeigt kaum einen Unterschied zwischen blatt- und ebenenweise:** der erste Versuch verglich EINEN Baum je Wachstumsart und fand fast identische Testfehler. Grund:
   ohne ein bindendes Blattbudget wachsen beide Varianten bis alle Splits mit positivem Gain gemacht sind – dieselbe MENGE an Splits, nur in anderer Reihenfolge, was am Ende dasselbe
   Ergebnis liefert (geprüft und bestätigt in `tests/test_algorithm.py`). Der Unterschied zeigt sich erst, wenn `num_leaves` klar VOR der natürlichen Sättigung greift, UND über ein ganzes
-  Boosting-Ensemble gemittelt (ein einzelner Baum reicht nicht) – erst dann zeigt sich die erwartete Richtung (klein/verrauscht: ebenenweise leicht robuster; groß/sauber: blattweise gewinnt).
+  Boosting-Ensemble gemittelt (ein einzelner Baum reicht nicht) – erst dann zeigt sich die erwartete Richtung bei klein/verrauscht (ebenenweise robuster); bei groß/sauber liegen beide gleichauf.
 - **Der Histogramm-Vorteil ist bei kleinen Daten negativ, nicht nur "kleiner":** die erste Erwartung war "Histogramme sind immer schneller, nur der Faktor wächst mit n". Gemessen zeigt sich:
   bei sehr wenigen Trainingszeilen prüft die Histogramm-Suche MEHR Kandidaten als eine exakte Suche (die feste Bin-Zahl schlägt zu Buche, obwohl die Knoten kaum mehr Zeilen haben als Bins) –
-  der Vorteil kippt erst bei rund 550–600 Zeilen ins Positive.
+  der Vorteil kippt zwischen 280 und 560 Zeilen ins Positive.
 - **Kein `min_child_samples`-Bug übersehen:** ein erster Entwurf prüfte die Mindestblattgröße nur grob auf Knotenebene (Gesamtzahl vor dem Split), nicht je Kind aus dem tatsächlichen
   Zähl-Histogramm – ein Test mit `min_child_samples=20` deckte auf, dass einzelne Blätter mit nur 5 Zeilen entstanden. Behoben durch ein drittes Histogramm (Zeilenzahl je Bin) neben Gradient
   und Hesse, das den Split jetzt auch nach Zeilenzahl je Kind einschränkt.
 
+- **Bin-Fehler (korrigiert 2026-09-24):** die Bin-Zuordnung (`x == Kante` fiel in den rechten Bin) passte nicht zur Regel "`x <= Schwelle` geht nach links". Bei Merkmalen, deren Quantil-Kanten mit Datenwerten zusammenfallen (seltene 0/1-Merkmale, ganzzahlige Werte, Wiederholungen), landeten alle Zeilen links: der Split wurde übersprungen, der Baum blieb ein Blatt. Aufgefallen ist es im Schwesterprojekt boosting-forecast-demo (Wochentag ignoriert, MASE 1,47 statt 0,79). Jetzt bedeutet Bin k `Kante[k-1] < x <= Kante[k]` (`side="left"`); ein Regressionstest deckt das seltene Binärmerkmal ab, und auf Daten ohne Zusammenfall sind die Bäume unverändert.
+  **Folgen für die Zahlen:** Standard-Preset Trainingsfehler 6,1 % → 0,2 %, Testfehler 16,7 % → 16,4 %, Blätter 975 → 1859 (fast jeder Baum erreicht jetzt 31 Blätter); Grobe Bins 19,7 % → 20,8 %; Regression Test-RMSE 10,5 → 9,4 Minuten; blattweise gegen ebenenweise bei groß/sauber von "blattweise gewinnt" zu gleichauf.
+
 ## Verifikation
 
-`tests/test_algorithm.py` (10 Tests): Histogramm-Split-Suche exakt gegen Brute-Force über dieselben Bin-Grenzen; Differenz-Trick exakt gegen direkte Neuberechnung; blattweise erzeugt bei
+`tests/test_algorithm.py` (13 Tests): Histogramm-Split-Suche exakt gegen Brute-Force über dieselben Bin-Grenzen; Differenz-Trick exakt gegen direkte Neuberechnung; blattweise erzeugt bei
 GLEICHER Blattzahl eine strukturell andere Baumform als ebenenweise (Tiefenbereich, gegen xgboost-demos exaktem Kern als Ebenenweise-Referenz); jeder gewählte Split hatte zum Zeitpunkt der
 Wahl positiven Gain; Vorhersagen über Rang-/Fehlergrenzen gegen die echte `lightgbm`-Bibliothek; Grenzfälle (Mindest-Zeilenzahl je Blatt, γ prunt stärker, eine Runde, Reproduzierbarkeit der
 Teilstichprobe). `tests/test_claims.py` (10 Tests) hält **jede Zahl** aus App und README fest. `tests/test_app.py` (21 Tests) prüft die Oberfläche per AppTest (jedes Preset, Aufgabenwechsel,

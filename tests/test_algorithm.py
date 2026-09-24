@@ -174,3 +174,41 @@ def test_generator_matches_cart_demo_conventions():
     assert ds.X.shape == (500, 11) and ds.names[:2] == ("Distanz", "Ladegewicht")
     Xtr, ytr, Xte, yte = S.split(ds, "class")
     assert len(Xtr) == 350 and len(Xte) == 150
+
+
+def _old_digitize(X, edges):
+    bins = np.empty(X.shape, dtype=np.int32)
+    for f in range(X.shape[1]):
+        bins[:, f] = np.searchsorted(edges[f], X[:, f], side="right")
+    return bins
+
+
+def test_rare_binary_feature_is_splittable():
+    # Bin k = (edges[k-1], edges[k]] muss zu "X <= threshold geht nach links" passen: sonst schickt die Schwelle 1.0 eines 0/1-Merkmals alle Zeilen nach links
+    rng = np.random.default_rng(0)
+    x = np.zeros(1000)
+    x[:30] = 1.0
+    X = x.reshape(-1, 1)
+    y = 5.0 * x + rng.normal(0, 0.1, 1000)
+    edges = T.build_bin_edges(X, 63)
+    assert np.array_equal(edges[0], [0.0, 1.0])
+    tree = T.grow(X, -y, np.ones(1000), edges, num_leaves=2, min_child_samples=1)
+    assert tree.n_leaves == 2 and tree.threshold[0] == 0.0
+    pred = T.predict_value(tree, X)
+    assert pred[x == 1].mean() > 4.0 and abs(pred[x == 0].mean()) < 0.1
+
+
+def test_bins_are_consistent_with_the_threshold_rule():
+    X = np.array([[0.0], [1.0], [1.0], [2.0], [3.0], [3.0]])
+    edges = [np.array([1.0, 3.0])]
+    assert T.digitize(X, edges)[:, 0].tolist() == [0, 0, 0, 1, 1, 1]
+
+
+def test_continuous_data_gives_the_same_trees_as_the_old_binning(monkeypatch):
+    # n = 401: die Quantil-Positionen 400*k/63 sind nie ganzzahlig, keine Kante trifft einen Datenwert - alte und neue Zuordnung stimmen überein
+    X, y = _reg(401, 5, 3)
+    ens_new = lgm.fit(X, y, "reg", num_leaves=15, max_depth=12, lam=1.0, n_rounds=15, learning_rate=0.2)
+    monkeypatch.setattr(T, "digitize", _old_digitize)
+    ens_old = lgm.fit(X, y, "reg", num_leaves=15, max_depth=12, lam=1.0, n_rounds=15, learning_rate=0.2)
+    monkeypatch.undo()
+    assert np.array_equal(lgm.predict_value(ens_new, X), lgm.predict_value(ens_old, X))

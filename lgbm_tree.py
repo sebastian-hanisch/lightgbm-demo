@@ -68,11 +68,11 @@ def build_bin_edges(X, max_bin):
 
 
 def digitize(X, edges):
-    """Bin-Nummer jeder Zeile je Merkmal (0 .. len(edges[f])), vektorisiert über `np.searchsorted`."""
+    """Bin-Nummer jeder Zeile je Merkmal (0 .. len(edges[f])), vektorisiert über `np.searchsorted`. Bin k heißt edges[k-1] < x <= edges[k] (`side="left"`), passend zur Regel "X <= Schwelle geht nach links"."""
     m, d = X.shape
     bins = np.empty((m, d), dtype=np.int32)
     for f in range(d):
-        bins[:, f] = np.searchsorted(edges[f], X[:, f], side="right")
+        bins[:, f] = np.searchsorted(edges[f], X[:, f], side="left")
     return bins
 
 

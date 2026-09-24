@@ -1,4 +1,4 @@
-"""Jede Zahl aus Texten, Hilfen und README ist hier belegt (gemessen am 2026-09-22, Toleranzen fangen Rundung ab). `analyse()` und die Experiment-Funktionen sind deterministisch (kein Zufall
+"""Jede Zahl aus Texten, Hilfen und README ist hier belegt (gemessen am 2026-09-24 nach der Bin-Korrektur, Toleranzen fangen Rundung ab). `analyse()` und die Experiment-Funktionen sind deterministisch (kein Zufall
 außer im Datenerzeuger und der - festen, mit `seed` reproduzierbaren - Teilstichprobe)."""
 
 import functools
@@ -35,8 +35,8 @@ def _default():
 
 def test_standard_preset():
     a = _preset("standard")
-    assert (a.train["error"], a.test["error"], a.n_leaves) == pytest.approx((0.0607, 0.1667, 975), abs=0.0015)
-    _help("standard", "6.1 %", "16.7 %", "975")
+    assert (a.train["error"], a.test["error"], a.n_leaves) == pytest.approx((0.0024, 0.1639, 1859), abs=0.0015)
+    _help("standard", "0.2 %", "16.4 %", "1859")
 
 
 def test_single_step_preset_is_no_better_than_a_shallow_stump():
@@ -51,18 +51,19 @@ def test_coarse_bins_hurt_and_fine_bins_help_slightly():
     fine = _preset("fine")
     standard = _preset("standard")
     assert coarse.max_bin == 8 and fine.max_bin == 255
-    assert coarse.test["error"] == pytest.approx(0.1972, abs=0.0015)
+    assert coarse.test["error"] == pytest.approx(0.2083, abs=0.0015)
     assert fine.test["error"] == pytest.approx(0.1611, abs=0.0015)
     assert coarse.test["error"] > standard.test["error"] > fine.test["error"]
-    _help("coarse", "19.7 %", "16.7 %")
-    _help("fine", "16.1 %", "0.2 %")
+    _help("coarse", "20.8 %", "16.4 %")
+    assert fine.train["error"] == 0.0
+    _help("fine", "16.1 %", "16.4 %")
 
 
 def test_regression_standard_preset():
     a = _preset("reg")
     assert a.task == "reg"
-    assert (a.test["rmse"], a.n_leaves) == pytest.approx((10.509, 1842), abs=0.02)
-    _help("reg", "10.5", "1842")
+    assert (a.test["rmse"], a.n_leaves) == pytest.approx((9.413, 1860), abs=0.02)
+    _help("reg", "9.4", "1860")
 
 
 def test_every_preset_is_a_valid_setting():
@@ -80,7 +81,7 @@ def test_every_preset_is_a_valid_setting():
 
 def test_default_view_numbers():
     a = _default()
-    assert (a.train["error"], a.test["error"], a.baseline) == pytest.approx((0.0607, 0.1667, 0.4639), abs=0.0015)
+    assert (a.train["error"], a.test["error"], a.baseline) == pytest.approx((0.0024, 0.1639, 0.4639), abs=0.0015)
 
 
 def test_round_curve_reaches_a_minimum():
@@ -95,10 +96,10 @@ def test_round_curve_reaches_a_minimum():
 def test_leaf_wise_wins_on_large_clean_data_level_wise_wins_on_small_noisy_data():
     comp = ev.policy_comparison(15, C.DEFAULT_N_ROUNDS, C.DEFAULT_LR, C.DEFAULT_MAX_BIN, 1.0, 0.0, 1.0)
     sn, lc = comp["small_noisy"], comp["large_clean"]
-    assert (sn["leaf"], sn["level"]) == pytest.approx((0.1967, 0.1917), abs=0.002)
-    assert (lc["leaf"], lc["level"]) == pytest.approx((0.1471, 0.1527), abs=0.002)
+    assert (sn["leaf"], sn["level"]) == pytest.approx((0.2100, 0.1950), abs=0.002)
+    assert (lc["leaf"], lc["level"]) == pytest.approx((0.1338, 0.1347), abs=0.002)
     assert sn["level"] < sn["leaf"]                                                                # klein & verrauscht: ebenenweise (leichte Bremse) gewinnt
-    assert lc["leaf"] < lc["level"]                                                                # groß & sauber: blattweise gewinnt
+    assert abs(lc["leaf"] - lc["level"]) < 0.005                                                   # groß & sauber: praktisch gleichauf (vor der Bin-Korrektur schien blattweise klar zu gewinnen)
 
 
 # --- Zähler: Histogramme gegen exakte Suche -----------------------------------------------------------------------------------------------------------
@@ -106,9 +107,9 @@ def test_leaf_wise_wins_on_large_clean_data_level_wise_wins_on_small_noisy_data(
 def test_histogram_advantage_grows_with_training_set_size():
     rows = ev.counter_rows(C.DEFAULT_NUM_LEAVES, C.DEFAULT_MAX_BIN, C.DEFAULT_NOISE, 0)
     ratios = [r["exact_candidates"] / r["histogram_candidates"] for r in rows]
-    assert ratios == pytest.approx([0.694, 0.959, 1.195, 2.293, 3.000], abs=0.02)
+    assert ratios == pytest.approx([0.683, 1.063, 1.181, 1.906, 2.981], abs=0.02)
     assert all(ratios[i] < ratios[i + 1] for i in range(len(ratios) - 1))                          # streng monoton wachsend mit der Datenmenge
-    assert ratios[0] < 1.0 < ratios[-1]                                                             # bei kleinen Daten ist die Histogramm-Suche sogar TEURER
+    assert ratios[0] < 1.0 < ratios[1] and ratios[-1] == pytest.approx(3.0, abs=0.05)                                                             # bei kleinen Daten ist die Histogramm-Suche sogar TEURER
 
 
 # --- Grenzfälle --------------------------------------------------------------------------------------------------------------------------------------

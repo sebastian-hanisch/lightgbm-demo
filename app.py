@@ -248,7 +248,7 @@ if st.session_state.get("policy_on"):
     sn, lc = comp["small_noisy"], comp["large_clean"]
     st.caption(f"15 Blätter je Baum, sonst Ihre aktuellen Einstellungen, Mittel über fünf Datensätze. Klein & verrauscht (400 Lieferungen, 6 Rauschmerkmale, 10 % falsche Etiketten): ebenenweise "
                f"leicht besser ({sn['level']:.1%} gegen {sn['leaf']:.1%}) - blattweise jagt hier eher dem Rauschen hinterher. Groß & sauber (3000 Lieferungen, 3 Rauschmerkmale, keine falschen "
-               f"Etiketten): blattweise gewinnt ({lc['leaf']:.1%} gegen {lc['level']:.1%}) - mit genug sauberen Daten nutzt die freie Wahl des besten Splits mehr, als sie schadet.")
+               f"Etiketten): {'blattweise gewinnt' if lc['level'] - lc['leaf'] > 0.005 else 'praktisch gleichauf'} (blattweise {lc['leaf']:.1%}, ebenenweise {lc['level']:.1%}) - mit genug sauberen Daten schadet die freie Wahl des besten Splits nicht.")
 
 st.markdown("---")
 
