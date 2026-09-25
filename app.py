@@ -67,6 +67,16 @@ def _policy_comparison(num_leaves, n_rounds, lr, max_bin, lam, gamma, mcw):
     return ev.policy_comparison(num_leaves, n_rounds, lr, max_bin, lam, gamma, mcw)
 
 
+def _policy_winner(rows, threshold=0.005):
+    """`rows` sind Testfehler (niedriger ist besser) je Policy. Wer klar niedriger liegt, gewinnt; sonst 'tie'."""
+    diff = rows["level"] - rows["leaf"]
+    if diff > threshold:
+        return "leaf"
+    if diff < -threshold:
+        return "level"
+    return "tie"
+
+
 @st.cache_data(show_spinner=False, max_entries=4)
 def _counter_rows(num_leaves, max_bin, n_noise, label_noise):
     return ev.counter_rows(num_leaves, max_bin, n_noise, label_noise)
@@ -246,9 +256,18 @@ if st.session_state.get("policy_on"):
         comp = _policy_comparison(15, int(n_rounds), float(lr), int(max_bin), float(lam), float(gamma), float(mcw))
     st.plotly_chart(build_policy_chart(comp), width="stretch", key="policy_chart")
     sn, lc = comp["small_noisy"], comp["large_clean"]
-    st.caption(f"15 Blätter je Baum, sonst Ihre aktuellen Einstellungen, Mittel über fünf Datensätze. Klein & verrauscht (400 Lieferungen, 6 Rauschmerkmale, 10 % falsche Etiketten): ebenenweise "
-               f"leicht besser ({sn['level']:.1%} gegen {sn['leaf']:.1%}) - blattweise jagt hier eher dem Rauschen hinterher. Groß & sauber (3000 Lieferungen, 3 Rauschmerkmale, keine falschen "
-               f"Etiketten): {'blattweise gewinnt' if lc['level'] - lc['leaf'] > 0.005 else 'praktisch gleichauf'} (blattweise {lc['leaf']:.1%}, ebenenweise {lc['level']:.1%}) - mit genug sauberen Daten schadet die freie Wahl des besten Splits nicht.")
+    sn_clause = {
+        "level": f"ebenenweise leicht besser ({sn['level']:.1%} gegen {sn['leaf']:.1%}) - blattweise jagt hier eher dem Rauschen hinterher",
+        "leaf": f"blattweise leicht besser ({sn['leaf']:.1%} gegen {sn['level']:.1%}) - die vorsichtigere ebenenweise Reihenfolge zahlt sich hier nicht aus",
+        "tie": f"praktisch gleichauf (blattweise {sn['leaf']:.1%}, ebenenweise {sn['level']:.1%}) - der erwartete Rauschvorteil von ebenenweise zeigt sich hier nicht deutlich",
+    }[_policy_winner(sn)]
+    lc_clause = {
+        "leaf": f"blattweise gewinnt (blattweise {lc['leaf']:.1%}, ebenenweise {lc['level']:.1%}) - mit genug sauberen Daten schadet die freie Wahl des besten Splits nicht",
+        "level": f"ebenenweise gewinnt (blattweise {lc['leaf']:.1%}, ebenenweise {lc['level']:.1%}) - hier hilft die vorsichtigere Reihenfolge sogar bei sauberen Daten",
+        "tie": f"praktisch gleichauf (blattweise {lc['leaf']:.1%}, ebenenweise {lc['level']:.1%}) - mit genug sauberen Daten schadet die freie Wahl des besten Splits nicht",
+    }[_policy_winner(lc)]
+    st.caption(f"15 Blätter je Baum, sonst Ihre aktuellen Einstellungen, Mittel über fünf Datensätze. Klein & verrauscht (400 Lieferungen, 6 Rauschmerkmale, 10 % falsche Etiketten): {sn_clause}. "
+               f"Groß & sauber (3000 Lieferungen, 3 Rauschmerkmale, keine falschen Etiketten): {lc_clause}.")
 
 st.markdown("---")
 
