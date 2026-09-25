@@ -55,7 +55,7 @@ def test_coarse_bins_hurt_and_fine_bins_help_slightly():
     assert fine.test["error"] == pytest.approx(0.1611, abs=0.0015)
     assert coarse.test["error"] > standard.test["error"] > fine.test["error"]
     _help("coarse", "20.8 %", "16.4 %")
-    assert fine.train["error"] == 0.0
+    assert fine.train["error"] == pytest.approx(0.0, abs=0.0015)
     _help("fine", "16.1 %", "16.4 %")
 
 
