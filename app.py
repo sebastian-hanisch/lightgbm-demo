@@ -246,9 +246,13 @@ if st.session_state.get("policy_on"):
         comp = _policy_comparison(15, int(n_rounds), float(lr), int(max_bin), float(lam), float(gamma), float(mcw))
     st.plotly_chart(build_policy_chart(comp), width="stretch", key="policy_chart")
     sn, lc = comp["small_noisy"], comp["large_clean"]
-    st.caption(f"15 Blätter je Baum, sonst Ihre aktuellen Einstellungen, Mittel über fünf Datensätze. Klein & verrauscht (400 Lieferungen, 6 Rauschmerkmale, 10 % falsche Etiketten): ebenenweise "
-               f"leicht besser ({sn['level']:.1%} gegen {sn['leaf']:.1%}) - blattweise jagt hier eher dem Rauschen hinterher. Groß & sauber (3000 Lieferungen, 3 Rauschmerkmale, keine falschen "
-               f"Etiketten): {'blattweise gewinnt' if lc['level'] - lc['leaf'] > 0.005 else 'praktisch gleichauf'} (blattweise {lc['leaf']:.1%}, ebenenweise {lc['level']:.1%}) - mit genug sauberen Daten schadet die freie Wahl des besten Splits nicht.")
+    if sn["level"] < sn["leaf"]:
+        sn_text = f"ebenenweise leicht besser ({sn['level']:.1%} gegen {sn['leaf']:.1%}) - blattweise jagt hier eher dem Rauschen hinterher."
+    else:
+        sn_text = f"bei Ihren Einstellungen blattweise {sn['leaf']:.1%}, ebenenweise {sn['level']:.1%} - hier zeigt sich der Rausch-Nachteil des blattweisen Wachsens nicht."
+    lc_verdict = "blattweise gewinnt" if lc["level"] - lc["leaf"] > 0.005 else ("ebenenweise gewinnt" if lc["leaf"] - lc["level"] > 0.005 else "praktisch gleichauf")
+    st.caption(f"15 Blätter je Baum, sonst Ihre aktuellen Einstellungen, Mittel über fünf Datensätze. Klein & verrauscht (400 Lieferungen, 6 Rauschmerkmale, 10 % falsche Etiketten): {sn_text} "
+               f"Groß & sauber (3000 Lieferungen, 3 Rauschmerkmale, keine falschen Etiketten): {lc_verdict} (blattweise {lc['leaf']:.1%}, ebenenweise {lc['level']:.1%}) - mit genug sauberen Daten schadet die freie Wahl des besten Splits nicht.")
 
 st.markdown("---")
 
@@ -261,10 +265,21 @@ if st.session_state.get("counter_on"):
     st.plotly_chart(build_counter_chart(crows), width="stretch", key="counter_chart")
     small, large = crows[0], crows[-1]
     ratio = large["exact_candidates"] / large["histogram_candidates"]
-    st.caption(f"Bei {small['train_rows']} Trainingszeilen prüft die Histogramm-Suche sogar MEHR Kandidaten als eine exakte Suche ({small['histogram_candidates']} gegen "
-               f"{small['exact_candidates']}) - die feste Bin-Zahl lohnt sich erst, wenn die Knoten mehr Zeilen haben als Bins. Bei {large['train_rows']} Zeilen dreht sich das Bild: die "
-               f"Histogramm-Suche bleibt bei {large['histogram_candidates']} Kandidaten (die Bin-Zahl wächst nicht mit der Datenmenge), die exakte Suche bräuchte {large['exact_candidates']} - "
-               f"{ratio:.1f}-mal so viele.")
+    more_at_small = small["histogram_candidates"] > small["exact_candidates"]
+    if more_at_small:
+        first = (f"Bei {small['train_rows']} Trainingszeilen prüft die Histogramm-Suche sogar MEHR Kandidaten als eine exakte Suche ({small['histogram_candidates']} gegen "
+                 f"{small['exact_candidates']}) - die feste Bin-Zahl lohnt sich erst, wenn die Knoten mehr Zeilen haben als Bins. Bei {large['train_rows']} Zeilen ")
+    else:
+        first = (f"Bei {small['train_rows']} Trainingszeilen prüft die Histogramm-Suche {small['histogram_candidates']} Kandidaten, die exakte Suche {small['exact_candidates']}. "
+                 f"Bei {large['train_rows']} Zeilen ")
+    if ratio > 1:
+        lead = "dreht sich das Bild: die Histogramm-Suche bleibt" if more_at_small else "bleibt die Histogramm-Suche"
+        second = (f"{lead} bei {large['histogram_candidates']} Kandidaten (die Bin-Zahl wächst nicht mit der Datenmenge), "
+                  f"die exakte Suche bräuchte {large['exact_candidates']} - {ratio:.1f}-mal so viele.")
+    else:
+        second = (f"prüft die Histogramm-Suche {large['histogram_candidates']} Kandidaten, die exakte Suche nur {large['exact_candidates']} - bei dieser Bin-Zahl zahlt sich der "
+                  f"Histogramm-Vorteil auf dieser Datenmenge noch nicht aus.")
+    st.caption(first + second)
 
 st.markdown("---")
 
@@ -307,6 +322,6 @@ st.markdown("---")
 
 st.caption(
     "Diese Demo ist Teil des Portfolios von [Sebastian Hanisch](https://sebastianhanisch.net) – "
-    "Operations Research und Machine Learning. Interesse an einer maßgeschneiderten Lösung für "
-    "Ihr Unternehmen? [Kontakt aufnehmen](https://sebastianhanisch.net/kontakt.html)"
+    "Operations Research und Machine Learning ([Über mich](https://sebastianhanisch.net/ueber-mich.html)). "
+    "Mehr zur Reihe: [Baumbasierte Verfahren: von CART bis CatBoost](https://sebastianhanisch.net/konzepte-baumbasiert.html)."
 )
