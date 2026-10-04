@@ -114,8 +114,6 @@ def apply_preset(name):
     p = C.PRESETS[name]
     for key, state_key in PRESET_KEYS.items():
         st.session_state[state_key] = p[key]
-    for state_key, kept in KEPT.items():
-        st.session_state[kept] = st.session_state[state_key]
     stash_kept_widget_state()
 
 
