@@ -114,7 +114,8 @@ def grow(X, grad, hess, edges, num_leaves=31, max_depth=None, lam=1.0, gamma=0.0
     """Wächst auf denselben Histogrammen mit demselben Differenz-Trick, nur die REIHENFOLGE unterscheidet sich: `policy="leaf"` (Standard) nimmt immer das Blatt mit dem größten möglichen Gain
     als Nächstes (Prioritätswarteschlange); `policy="level"` nimmt sie in Entstehungsreihenfolge (FIFO) - Ebene für Ebene, wie cart-demo/xgboost-demo, nur eben über Histogramme statt exakter Suche.
     Beide stoppen bei `num_leaves`, der Tiefengrenze oder wenn kein Blatt mehr einen positiven Gain hat. Für jedes neue Kind wird nur das KLEINERE direkt histogrammiert, das größere per Differenz.
-    `stats` (optional, dict): wird mit `histograms_built` (Aufrufe von `histogram()`, je Knoten und Merkmal) und `candidates_checked` (geprüfte Bin-Grenzen über alle Split-Versuche) befüllt -
+    `stats` (optional, dict): wird mit `histograms_built` (Aufrufe von `histogram()`, je Knoten und Merkmal) und `candidates_checked` (geprüfte Bin-Grenzen über alle Split-Versuche) und `exact_candidates` (Schwellen, die eine exakte Suche in denselben Knoten prüfen müsste; auch in den am Ende ungeteilten Blättern,
+    deren bester Split für die Reihenfolge bestimmt wurde) befüllt -
     nur fürs Experiment "Zähler gegen exakte Suche" gedacht, kostet sonst nichts (Standardaufruf ohne `stats` bleibt unverändert)."""
     X = np.asarray(X, dtype=float)
     grad = np.asarray(grad, dtype=float)
@@ -126,6 +127,7 @@ def grow(X, grad, hess, edges, num_leaves=31, max_depth=None, lam=1.0, gamma=0.0
     if stats is not None:
         stats.setdefault("histograms_built", 0)
         stats.setdefault("candidates_checked", 0)
+        stats.setdefault("exact_candidates", 0)
 
     feature, threshold, left, right, value, gain, g_sum, h_sum, size, depth, order = [], [], [], [], [], [], [], [], [], [], []
     node_hist = {}                                                            # Knoten -> Liste (Gradient-, Hesse-, Zähl-Histogramm) je Merkmal
@@ -158,6 +160,7 @@ def grow(X, grad, hess, edges, num_leaves=31, max_depth=None, lam=1.0, gamma=0.0
         hc = [hc for _, _, hc in node_hist[t]]
         if stats is not None:
             stats["candidates_checked"] += sum(max(len(g) - 1, 0) for g in hg)
+            stats["exact_candidates"] += (size[t] - 1) * d                    # eine exakte Suche prüft in genau diesem Knoten (Zeilen - 1) Schwellen je Merkmal
         s = best_split_from_histograms(hg, hh, hc, edges, lam, gamma, min_child_weight, min_child_samples)
         if s is None:
             return

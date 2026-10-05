@@ -134,8 +134,8 @@ N_GRID = (400, 800, 1200, 2000, 3000)
 
 
 def counter_rows(num_leaves, max_bin, n_noise, label_noise, seed=C.DEFAULT_SEED, grid=N_GRID):
-    """Für eine wachsende Trainingsmenge: geprüfte Split-Kandidaten mit Histogrammen (ein Baum) gegen eine exakte Suche derselben Baumgröße (Summe (Zeilen im Knoten - 1) * Merkmale über alle
-    tatsächlichen Splits des gewachsenen Baums) - zeigt, dass der Histogramm-Vorteil mit der Datenmenge wächst (Bin-Zahl bleibt fest, exakte Split-Suche wächst mit den Zeilen)."""
+    """Für eine wachsende Trainingsmenge: geprüfte Split-Kandidaten mit Histogrammen (ein Baum) gegen eine exakte Suche in denselben Knoten (Summe (Zeilen im Knoten - 1) * Merkmale über ALLE Knoten, deren
+    bester Split bestimmt wurde - auch die am Ende ungeteilten Blätter, für die die Histogramm-Suche ebenfalls zählt) - zeigt, dass der Histogramm-Vorteil mit der Datenmenge wächst (Bin-Zahl bleibt fest, exakte Split-Suche wächst mit den Zeilen)."""
     rows = []
     for n in grid:
         ds = S.generate_dataset(n, n_noise, label_noise, seed)
@@ -145,7 +145,5 @@ def counter_rows(num_leaves, max_bin, n_noise, label_noise, seed=C.DEFAULT_SEED,
         g, h = lgm.grad_hess(ytr.astype(float), np.full(len(ytr), f0), "class")
         stats = {}
         tree = T.grow(Xtr, g, h, edges, num_leaves=num_leaves, max_depth=12, lam=1.0, gamma=0.0, min_child_weight=1.0, min_child_samples=1, policy="leaf", stats=stats)
-        d = Xtr.shape[1]
-        exact = sum((int(tree.n[t]) - 1) * d for t in tree.internal_nodes())
-        rows.append({"n": n, "train_rows": len(ytr), "histogram_candidates": stats["candidates_checked"], "exact_candidates": exact, "leaves": tree.n_leaves})
+        rows.append({"n": n, "train_rows": len(ytr), "histogram_candidates": stats["candidates_checked"], "exact_candidates": stats["exact_candidates"], "leaves": tree.n_leaves})
     return rows

@@ -107,9 +107,9 @@ def test_leaf_wise_wins_on_large_clean_data_level_wise_wins_on_small_noisy_data(
 def test_histogram_advantage_grows_with_training_set_size():
     rows = ev.counter_rows(C.DEFAULT_NUM_LEAVES, C.DEFAULT_MAX_BIN, C.DEFAULT_NOISE, 0)
     ratios = [r["exact_candidates"] / r["histogram_candidates"] for r in rows]
-    assert ratios == pytest.approx([0.683, 1.063, 1.181, 1.906, 2.981], abs=0.02)
+    assert ratios == pytest.approx([0.819, 1.254, 1.451, 2.364, 3.673], abs=0.02)
     assert all(ratios[i] < ratios[i + 1] for i in range(len(ratios) - 1))                          # streng monoton wachsend mit der Datenmenge
-    assert ratios[0] < 1.0 < ratios[1] and ratios[-1] == pytest.approx(3.0, abs=0.05)                                                             # bei kleinen Daten ist die Histogramm-Suche sogar TEURER
+    assert ratios[0] < 1.0 < ratios[1] and ratios[-1] == pytest.approx(3.7, abs=0.05)                                                             # bei kleinen Daten ist die Histogramm-Suche sogar TEURER
 
 
 # --- Grenzfälle --------------------------------------------------------------------------------------------------------------------------------------
